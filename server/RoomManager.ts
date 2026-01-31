@@ -16,7 +16,7 @@ import {
   DEFAULT_GAME_SETTINGS,
   GameSettings,
   GameFinishedPayload,
-} from '../shared/types';
+} from './types';
 
 // Fuzzy string matching using Levenshtein distance
 function levenshteinDistance(str1: string, str2: string): number {
@@ -162,7 +162,7 @@ export class RoomManager {
       }
     } else {
       room.players.delete(playerId);
-      room.playerOrder = room.playerOrder.filter(id => id !== playerId);
+      room.playerOrder = room.playerOrder.filter((id: string) => id !== playerId);
     }
 
     this.playerToRoom.delete(playerId);
@@ -265,7 +265,7 @@ export class RoomManager {
     assigner.hasSubmittedAssignment = true;
 
     // Check if all players have submitted
-    const allSubmitted = Array.from(room.players.values()).every(p => p.hasSubmittedAssignment);
+    const allSubmitted = Array.from(room.players.values()).every((p: Player) => p.hasSubmittedAssignment);
 
     return { success: true, allSubmitted, room };
   }
@@ -277,7 +277,7 @@ export class RoomManager {
     if (room.phase !== 'ASSIGNMENT') return { success: false, room: null };
 
     // Verify all assignments are complete
-    const allSubmitted = Array.from(room.players.values()).every(p => p.hasSubmittedAssignment);
+    const allSubmitted = Array.from(room.players.values()).every((p: Player) => p.hasSubmittedAssignment);
     if (!allSubmitted) return { success: false, room: null };
 
     room.phase = 'PLAYING';
@@ -427,7 +427,7 @@ export class RoomManager {
     if (question.askerId === playerId) return { success: false, question: null, room: null };
 
     // Check if already voted
-    const existingVoteIndex = question.votes.findIndex(v => v.playerId === playerId);
+    const existingVoteIndex = question.votes.findIndex((v: Vote) => v.playerId === playerId);
     
     if (existingVoteIndex >= 0) {
       // Update existing vote
@@ -486,8 +486,8 @@ export class RoomManager {
       
       // Check if game is finished (all players guessed)
       const allGuessed = Array.from(room.players.values())
-        .filter(p => p.isConnected)
-        .every(p => p.hasGuessedCorrectly);
+        .filter((p: Player) => p.isConnected)
+        .every((p: Player) => p.hasGuessedCorrectly);
 
       if (allGuessed) {
         room.phase = 'FINISHED';
@@ -517,7 +517,7 @@ export class RoomManager {
     if (!room) return null;
 
     const rankings = Array.from(room.players.values())
-      .map(player => ({
+      .map((player: Player) => ({
         playerId: player.id,
         playerName: player.name,
         turnsToGuess: player.turnsToGuess,

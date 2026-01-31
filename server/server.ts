@@ -21,7 +21,8 @@ import {
   GuessResponse,
   Reaction,
   GameState,
-} from '../shared/types';
+  Player,
+} from './types';
 import { roomManager } from './RoomManager';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -55,7 +56,7 @@ app.get('/health', (req, res) => {
 // ============================================
 
 function broadcastGameState(room: GameState): void {
-  room.players.forEach((player, playerId) => {
+  room.players.forEach((player: Player, playerId: string) => {
     const socket = io.sockets.sockets.get(playerId);
     if (socket) {
       const playerState = roomManager.serializeGameStateForPlayer(room, playerId);
@@ -207,7 +208,7 @@ io.on('connection', (socket: Socket<ClientToServerEvents, ServerToClientEvents>)
 
       const result = roomManager.submitAssignment(socket.id, {
         displayName: displayName.trim(),
-        allowedAliases: allowedAliases.map(a => a.trim()).filter(a => a.length > 0),
+        allowedAliases: allowedAliases.map((a: string) => a.trim()).filter((a: string) => a.length > 0),
         imageUrl,
       });
 
@@ -423,7 +424,7 @@ io.on('connection', (socket: Socket<ClientToServerEvents, ServerToClientEvents>)
   // UTILITY EVENTS
   // ----------------------------------------
 
-  socket.on('ping', (callback) => {
+  socket.on('ping', (callback: () => void) => {
     callback();
   });
 
