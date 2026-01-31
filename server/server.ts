@@ -19,6 +19,7 @@ import {
   RoomResponse,
   GenericResponse,
   GuessResponse,
+  ForfeitResponse,
   Reaction,
   GameState,
   Player,
@@ -417,6 +418,101 @@ io.on('connection', (socket: Socket<ClientToServerEvents, ServerToClientEvents>)
 
     } catch (error) {
       console.error('[Game] Error sending reaction:', error);
+    }
+  });
+
+  // ----------------------------------------
+  // FORFEIT & PASS EVENTS
+  // ----------------------------------------
+
+  socket.on('forfeit', (callback: (response: ForfeitResponse) => void) => {
+    try {
+      const room = roomManager.getRoomByPlayerId(socket.id);
+      if (!room) {
+        callback({ success: false, error: 'Not in a room' });
+        return;
+      }
+
+      const player = room.players.get(socket.id);
+      const result = roomManager.forfeitPlayer(socket.id);
+
+      if (!result.success || !result.room) {
+        callback({ success: false, error: 'Cannot forfeit' });
+        return;
+      }
+
+      // Notify all players about the forfeit
+      if (result.identity && player) {
+        broadcastToRoom(result.room.roomCode, 'player_forfeited', {
+          playerId: socket.id,
+          playerName: player.name,
+          identity: result.identity,
+        });
+      }
+
+      // Check if game is finished
+      if (result.gameFinished) {
+        const gameResults = roomManager.getGameResults(result.room.roomCode);
+        if (gameResults) {
+          broadcastToRoom(result.room.roomCode, 'game_finished', gameResults);
+        }
+      } else if (result.room.turnState) {
+        // If turn advanced, broadcast new turn
+        broadcastToRoom(result.room.roomCode, 'turn_started', result.room.turnState);
+        startTurnTimerWithBroadcast(result.room.roomCode);
+      }
+
+      broadcastGameState(result.room);
+      callback({ success: true, identity: result.identity });
+
+      console.log(`[Game] ${player?.name} forfeited in room ${result.room.roomCode}`);
+    } catch (error) {
+      console.error('[Game] Error forfeiting:', error);
+      callback({ success: false, error: 'Failed to forfeit' });
+    }
+  });
+
+  socket.on('pass_turn', (callback: (response: GenericResponse) => void) => {
+    try {
+      const room = roomManager.getRoomByPlayerId(socket.id);
+      if (!room) {
+        callback({ success: false, error: 'Not in a room' });
+        return;
+      }
+
+      const result = roomManager.passTurn(socket.id);
+
+      if (!result.success || !result.room) {
+        callback({ success: false, error: 'Cannot pass turn. Is it your turn?' });
+        return;
+      }
+
+      // Notify all players about the pass
+      broadcastToRoom(result.room.roomCode, 'turn_passed', {
+        playerId: socket.id,
+        nextGuesserId: result.nextGuesserId || '',
+      });
+
+      // Check if game is finished (no more guessers)
+      if (result.room.phase === 'FINISHED') {
+        const gameResults = roomManager.getGameResults(result.room.roomCode);
+        if (gameResults) {
+          broadcastToRoom(result.room.roomCode, 'game_finished', gameResults);
+        }
+      } else if (result.room.turnState) {
+        // Broadcast new turn and start timer
+        broadcastToRoom(result.room.roomCode, 'turn_started', result.room.turnState);
+        startTurnTimerWithBroadcast(result.room.roomCode);
+      }
+
+      broadcastGameState(result.room);
+      callback({ success: true });
+
+      const player = room.players.get(socket.id);
+      console.log(`[Game] ${player?.name} passed their turn in room ${result.room.roomCode}`);
+    } catch (error) {
+      console.error('[Game] Error passing turn:', error);
+      callback({ success: false, error: 'Failed to pass turn' });
     }
   });
 

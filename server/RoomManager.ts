@@ -69,6 +69,7 @@ export class RoomManager {
   private rooms: Map<string, GameState> = new Map();
   private playerToRoom: Map<string, string> = new Map(); // playerId -> roomCode
   private turnTimers: Map<string, NodeJS.Timeout> = new Map(); // roomCode -> timer
+  private forfeitCounters: Map<string, number> = new Map(); // roomCode -> forfeit order counter
 
   // ============================================
   // ROOM LIFECYCLE
@@ -90,6 +91,7 @@ export class RoomManager {
       turnsToGuess: 0,
       isConnected: true,
       guessLockUntil: 0,
+      forfeitOrder: 0,
     };
 
     const gameState: GameState = {
@@ -126,6 +128,7 @@ export class RoomManager {
       turnsToGuess: 0,
       isConnected: true,
       guessLockUntil: 0,
+      forfeitOrder: 0,
     };
 
     room.players.set(playerId, player);
@@ -337,7 +340,7 @@ export class RoomManager {
   }
 
   /**
-   * Gets the next eligible guesser (skips players who have already guessed correctly)
+   * Gets the next eligible guesser (skips players who have already guessed correctly or forfeited)
    */
   getNextGuesser(roomCode: string): string | null {
     const room = this.rooms.get(roomCode);
@@ -346,13 +349,13 @@ export class RoomManager {
     const currentIndex = room.playerOrder.indexOf(room.turnState.activeGuesserId);
     const playerCount = room.playerOrder.length;
 
-    // Find next player who hasn't guessed correctly and is connected
+    // Find next player who hasn't guessed correctly, hasn't forfeited, and is connected
     for (let i = 1; i <= playerCount; i++) {
       const nextIndex = (currentIndex + i) % playerCount;
       const nextPlayerId = room.playerOrder[nextIndex];
       const nextPlayer = room.players.get(nextPlayerId);
 
-      if (nextPlayer && !nextPlayer.hasGuessedCorrectly && nextPlayer.isConnected) {
+      if (nextPlayer && !nextPlayer.hasGuessedCorrectly && nextPlayer.forfeitOrder === 0 && nextPlayer.isConnected) {
         return nextPlayerId;
       }
     }
@@ -509,6 +512,94 @@ export class RoomManager {
   }
 
   // ============================================
+  // FORFEIT & PASS
+  // ============================================
+
+  /**
+   * Player forfeits - they give up and see their identity
+   * They are marked with forfeitOrder and placed at bottom of rankings
+   */
+  forfeitPlayer(playerId: string): { 
+    success: boolean; 
+    identity?: PlayerIdentity; 
+    room: GameState | null;
+    gameFinished: boolean;
+  } {
+    const roomCode = this.playerToRoom.get(playerId);
+    if (!roomCode) return { success: false, room: null, gameFinished: false };
+
+    const room = this.rooms.get(roomCode);
+    if (!room) return { success: false, room: null, gameFinished: false };
+    if (room.phase !== 'PLAYING') return { success: false, room: null, gameFinished: false };
+
+    const player = room.players.get(playerId);
+    if (!player) return { success: false, room: null, gameFinished: false };
+    if (player.hasGuessedCorrectly) return { success: false, room: null, gameFinished: false };
+    if (player.forfeitOrder > 0) return { success: false, room: null, gameFinished: false }; // Already forfeited
+
+    // Increment forfeit counter for this room and assign order
+    const currentCounter = this.forfeitCounters.get(roomCode) || 0;
+    const newCounter = currentCounter + 1;
+    this.forfeitCounters.set(roomCode, newCounter);
+    player.forfeitOrder = newCounter;
+
+    const identity = player.assignedIdentity;
+
+    // Check if it was this player's turn - if so, advance
+    const wasTheirTurn = room.turnState?.activeGuesserId === playerId;
+    
+    // Check if game is finished (all remaining players have guessed or forfeited)
+    const activePlayers = Array.from(room.players.values())
+      .filter((p: Player) => p.isConnected && !p.hasGuessedCorrectly && p.forfeitOrder === 0);
+
+    if (activePlayers.length === 0) {
+      room.phase = 'FINISHED';
+      this.clearTurnTimer(room.roomCode);
+      return { success: true, identity, room, gameFinished: true };
+    }
+
+    // If it was their turn, advance to next player
+    if (wasTheirTurn) {
+      this.advanceTurn(room.roomCode);
+    }
+
+    return { success: true, identity, room, gameFinished: false };
+  }
+
+  /**
+   * Player passes their turn
+   * The current question (if any) is already in history from submitQuestion
+   * This just ends the turn early
+   */
+  passTurn(playerId: string): {
+    success: boolean;
+    room: GameState | null;
+    questionAdded: boolean;
+    nextGuesserId: string | null;
+  } {
+    const roomCode = this.playerToRoom.get(playerId);
+    if (!roomCode) return { success: false, room: null, questionAdded: false, nextGuesserId: null };
+
+    const room = this.rooms.get(roomCode);
+    if (!room) return { success: false, room: null, questionAdded: false, nextGuesserId: null };
+    if (room.phase !== 'PLAYING') return { success: false, room: null, questionAdded: false, nextGuesserId: null };
+
+    // Only the active guesser can pass
+    if (room.turnState?.activeGuesserId !== playerId) {
+      return { success: false, room: null, questionAdded: false, nextGuesserId: null };
+    }
+
+    // Note: Question is already in history from submitQuestion, so we don't add it again
+    const hadQuestion = !!room.turnState.currentQuestion;
+
+    // Clear the turn timer and advance
+    this.clearTurnTimer(roomCode);
+    const { nextGuesserId } = this.advanceTurn(roomCode);
+
+    return { success: true, room, questionAdded: hadQuestion, nextGuesserId };
+  }
+
+  // ============================================
   // GAME COMPLETION
   // ============================================
 
@@ -522,15 +613,29 @@ export class RoomManager {
         playerName: player.name,
         turnsToGuess: player.turnsToGuess,
         guessedCorrectly: player.hasGuessedCorrectly,
+        forfeited: player.forfeitOrder > 0,
+        forfeitOrder: player.forfeitOrder,
       }))
       .sort((a, b) => {
-        // Players who guessed correctly rank higher
+        // Forfeited players always rank at the bottom
+        if (a.forfeited !== b.forfeited) {
+          return a.forfeited ? 1 : -1;
+        }
+        
+        // Among forfeited players, earlier forfeit = lower rank (worse)
+        if (a.forfeited && b.forfeited) {
+          return a.forfeitOrder - b.forfeitOrder;
+        }
+        
+        // Players who guessed correctly rank higher than those who didn't
         if (a.guessedCorrectly !== b.guessedCorrectly) {
           return a.guessedCorrectly ? -1 : 1;
         }
-        // Among those who guessed, fewer turns = better
+        
+        // Among those who guessed correctly, fewer turns = better
         return a.turnsToGuess - b.turnsToGuess;
-      });
+      })
+      .map(({ forfeitOrder, ...rest }) => rest); // Remove forfeitOrder from final result
 
     return { rankings };
   }

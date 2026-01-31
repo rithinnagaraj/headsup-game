@@ -21,6 +21,7 @@ export interface Player {
   turnsToGuess: number;       // Number of turns it took to guess (for scoring)
   isConnected: boolean;       // Connection status
   guessLockUntil: number;     // Timestamp when guess lock expires (penalty)
+  forfeitOrder: number;       // 0 = not forfeited, >0 = order they forfeited (for ranking)
 }
 
 // ---- Question & Voting Types ----
@@ -127,6 +128,8 @@ export interface ClientToServerEvents {
   vote: (data: VotePayload) => void;
   make_guess: (data: MakeGuessPayload, callback: (response: GuessResponse) => void) => void;
   send_reaction: (data: SendReactionPayload) => void;
+  forfeit: (callback: (response: ForfeitResponse) => void) => void;
+  pass_turn: (callback: (response: GenericResponse) => void) => void;
   
   // Utility
   ping: (callback: () => void) => void;
@@ -156,6 +159,10 @@ export interface ServerToClientEvents {
   // Guessing
   correct_guess: (data: { playerId: string; identity: PlayerIdentity }) => void;
   wrong_guess: (data: { playerId: string; lockUntil: number }) => void;
+  
+  // Forfeit & Pass
+  player_forfeited: (data: { playerId: string; playerName: string; identity: PlayerIdentity }) => void;
+  turn_passed: (data: { playerId: string; nextGuesserId: string }) => void;
   
   // Reactions
   reaction_received: (reaction: Reaction) => void;
@@ -218,6 +225,12 @@ export interface GuessResponse {
   error?: string;
 }
 
+export interface ForfeitResponse {
+  success: boolean;
+  identity?: PlayerIdentity;
+  error?: string;
+}
+
 export interface SendReactionPayload {
   toPlayerId: string;
   emoji: string;
@@ -229,6 +242,7 @@ export interface GameFinishedPayload {
     playerName: string;
     turnsToGuess: number;
     guessedCorrectly: boolean;
+    forfeited: boolean;
   }>;
 }
 

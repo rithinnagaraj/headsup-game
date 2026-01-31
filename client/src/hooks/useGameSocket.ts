@@ -196,6 +196,38 @@ export function useGameSocket() {
     [addReaction, removeReaction]
   );
   
+  const handlePlayerForfeited = useCallback(
+    (data: { playerId: string; playerName: string; identity: PlayerIdentity }) => {
+      const myPlayerId = useGameStore.getState().player.myPlayerId;
+      
+      if (data.playerId === myPlayerId) {
+        addNotification(
+          'warning',
+          `You forfeited. You were ${data.identity.displayName}!`
+        );
+      } else {
+        addNotification(
+          'warning',
+          `${data.playerName} forfeited! They were ${data.identity.displayName}.`
+        );
+      }
+    },
+    [addNotification]
+  );
+  
+  const handleTurnPassed = useCallback(
+    (data: { playerId: string; nextGuesserId: string }) => {
+      const gameState = useGameStore.getState().gameState;
+      const player = gameState?.players[data.playerId];
+      const nextPlayer = gameState?.players[data.nextGuesserId];
+      
+      if (player && nextPlayer) {
+        addNotification('info', `${player.name} passed. ${nextPlayer.name}'s turn now.`);
+      }
+    },
+    [addNotification]
+  );
+  
   const handleGameFinished = useCallback(
     (data: GameFinishedPayload) => {
       const { rankings } = data;
@@ -282,6 +314,8 @@ export function useGameSocket() {
     socket.on('correct_guess', handleCorrectGuess);
     socket.on('wrong_guess', handleWrongGuess);
     socket.on('reaction_received', handleReactionReceived);
+    socket.on('player_forfeited', handlePlayerForfeited);
+    socket.on('turn_passed', handleTurnPassed);
     socket.on('game_finished', handleGameFinished);
     socket.on('error', handleError);
     
@@ -301,6 +335,8 @@ export function useGameSocket() {
       socket.off('correct_guess');
       socket.off('wrong_guess');
       socket.off('reaction_received');
+      socket.off('player_forfeited');
+      socket.off('turn_passed');
       socket.off('game_finished');
       socket.off('error');
     };
@@ -318,6 +354,8 @@ export function useGameSocket() {
     handleCorrectGuess,
     handleWrongGuess,
     handleReactionReceived,
+    handlePlayerForfeited,
+    handleTurnPassed,
     handleGameFinished,
     handleError,
   ]);

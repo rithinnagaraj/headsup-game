@@ -16,6 +16,7 @@ import {
   RoomResponse,
   GenericResponse,
   GuessResponse,
+  ForfeitResponse,
 } from '@shared/types';
 
 // Type-safe socket
@@ -150,6 +151,24 @@ export function makeGuess(data: MakeGuessPayload): Promise<GuessResponse> {
 export function sendReaction(data: SendReactionPayload): void {
   const s = getSocket();
   s.emit('send_reaction', data);
+}
+
+export function forfeit(): Promise<ForfeitResponse> {
+  return new Promise((resolve) => {
+    const s = getSocket();
+    s.emit('forfeit', (response) => {
+      resolve(response);
+    });
+  });
+}
+
+export function passTurn(): Promise<GenericResponse> {
+  return new Promise((resolve) => {
+    const s = getSocket();
+    s.emit('pass_turn', (response) => {
+      resolve(response);
+    });
+  });
 }
 
 export function ping(): Promise<number> {

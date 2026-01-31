@@ -11,16 +11,26 @@ export function FinishedPhase() {
   
   if (!gameState) return null;
   
-  // Sort players by performance
+  // Sort players by performance (forfeited players at bottom)
   const rankings = Object.values(gameState.players)
     .map((player) => ({
       ...player,
-      score: player.hasGuessedCorrectly ? player.turnsToGuess : Infinity,
+      forfeited: (player.forfeitOrder ?? 0) > 0,
     }))
     .sort((a, b) => {
+      // Forfeited players always at bottom
+      if (a.forfeited !== b.forfeited) {
+        return a.forfeited ? 1 : -1;
+      }
+      // Among forfeited players, earlier forfeit = lower rank
+      if (a.forfeited && b.forfeited) {
+        return (a.forfeitOrder ?? 0) - (b.forfeitOrder ?? 0);
+      }
+      // Players who guessed correctly rank higher
       if (a.hasGuessedCorrectly !== b.hasGuessedCorrectly) {
         return a.hasGuessedCorrectly ? -1 : 1;
       }
+      // Among those who guessed, fewer turns = better
       return a.turnsToGuess - b.turnsToGuess;
     });
   
@@ -76,7 +86,12 @@ export function FinishedPhase() {
                 
                 {/* Score */}
                 <div className="text-right">
-                  {player.hasGuessedCorrectly ? (
+                  {player.forfeited ? (
+                    <>
+                      <p className="text-orange-400 font-bold">Forfeit</p>
+                      <p className="text-xs text-gray-400">Gave up</p>
+                    </>
+                  ) : player.hasGuessedCorrectly ? (
                     <>
                       <p className="text-green-400 font-bold">
                         {player.turnsToGuess} turns
