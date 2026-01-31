@@ -198,7 +198,7 @@ export default function HomePage() {
       
       {/* Footer */}
       <p className="mt-8 text-gray-500 text-sm">
-        Built with ❤️ for game nights
+        Built by Rithin
       </p>
     </div>
   );
