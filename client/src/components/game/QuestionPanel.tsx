@@ -1,10 +1,12 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useGameStore } from '@/store/gameStore';
 import { sendQuestion, vote, makeGuess } from '@/lib/socket';
 import { cn } from '@/lib/utils';
 import { VoteType } from '@shared/types';
+import { EmojiStream } from '@/components/effects';
+import { soundManager } from '@/lib/sounds';
 
 export function QuestionPanel() {
   const gameState = useGameStore((s) => s.gameState);
@@ -18,6 +20,40 @@ export function QuestionPanel() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showGuessInput, setShowGuessInput] = useState(false);
   const [myVote, setMyVote] = useState<VoteType | null>(null);
+  
+  // Emoji stream triggers
+  const [yesTrigger, setYesTrigger] = useState(0);
+  const [noTrigger, setNoTrigger] = useState(0);
+  const [maybeTrigger, setMaybeTrigger] = useState(0);
+  
+  // Track previous vote tally to detect new votes
+  const prevTallyRef = useRef({ yes: 0, no: 0, maybe: 0 });
+  
+  // Detect new votes and trigger emoji streams
+  useEffect(() => {
+    if (!gameState?.turnState?.currentQuestion) {
+      prevTallyRef.current = { yes: 0, no: 0, maybe: 0 };
+      return;
+    }
+    
+    const tally = gameState.turnState.currentQuestion.voteTally;
+    const prev = prevTallyRef.current;
+    
+    if (tally.yes > prev.yes) {
+      setYesTrigger((t) => t + 1);
+      soundManager.play('pop');
+    }
+    if (tally.no > prev.no) {
+      setNoTrigger((t) => t + 1);
+      soundManager.play('pop');
+    }
+    if (tally.maybe > prev.maybe) {
+      setMaybeTrigger((t) => t + 1);
+      soundManager.play('pop');
+    }
+    
+    prevTallyRef.current = { ...tally };
+  }, [gameState?.turnState?.currentQuestion?.voteTally]);
   
   if (!gameState) return null;
   
@@ -62,26 +98,32 @@ export function QuestionPanel() {
   };
   
   return (
-    <div className="bg-game-card rounded-xl border border-game-border p-4">
-      <h3 className="font-bold mb-4">Question Panel</h3>
+    <>
+      {/* Emoji Streams for votes */}
+      <EmojiStream type="YES" trigger={yesTrigger} />
+      <EmojiStream type="NO" trigger={noTrigger} />
+      <EmojiStream type="MAYBE" trigger={maybeTrigger} />
       
-      {/* Current Question Display */}
-      {currentQuestion && (
-        <div className="mb-4 p-4 bg-game-bg rounded-lg">
-          <p className="text-sm text-gray-400 mb-1">Current Question:</p>
-          <p className="font-medium mb-3">"{currentQuestion.text}"</p>
+      <div className="bg-game-card rounded-xl border border-game-border p-4">
+        <h3 className="font-bold mb-4">Question Panel</h3>
+      
+        {/* Current Question Display */}
+        {currentQuestion && (
+          <div className="mb-4 p-4 bg-game-bg rounded-lg">
+            <p className="text-sm text-gray-400 mb-1">Current Question:</p>
+            <p className="font-medium mb-3">"{currentQuestion.text}"</p>
           
-          {/* Vote Buttons (for non-askers) */}
-          {!isAsker && (
-            <div className="flex gap-2">
-              <VoteButton
-                type="YES"
-                count={currentQuestion.voteTally.yes}
-                isSelected={myVote === 'YES'}
-                onClick={() => handleVote('YES')}
-              />
-              <VoteButton
-                type="NO"
+            {/* Vote Buttons (for non-askers) */}
+            {!isAsker && (
+              <div className="flex gap-2">
+                <VoteButton
+                  type="YES"
+                  count={currentQuestion.voteTally.yes}
+                  isSelected={myVote === 'YES'}
+                  onClick={() => handleVote('YES')}
+                />
+                <VoteButton
+                  type="NO"
                 count={currentQuestion.voteTally.no}
                 isSelected={myVote === 'NO'}
                 onClick={() => handleVote('NO')}
@@ -196,7 +238,8 @@ export function QuestionPanel() {
           Wait for your turn to ask questions
         </p>
       )}
-    </div>
+      </div>
+    </>
   );
 }
 

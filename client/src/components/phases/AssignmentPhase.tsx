@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useGameStore } from '@/store/gameStore';
 import { submitAssignment, startGame } from '@/lib/socket';
 import { getInitials } from '@/lib/utils';
+import { GiphySearch } from '@/components/ui/GiphySearch';
 
 export function AssignmentPhase() {
   const gameState = useGameStore((s) => s.gameState);
@@ -114,18 +115,12 @@ export function AssignmentPhase() {
                 </p>
               </div>
               
-              <div>
-                <label className="block text-sm text-gray-400 mb-2">
-                  Image URL (optional)
-                </label>
-                <input
-                  type="url"
-                  value={imageUrl}
-                  onChange={(e) => setImageUrl(e.target.value)}
-                  placeholder="https://example.com/image.jpg"
-                  className="w-full px-4 py-3 bg-game-bg border border-game-border rounded-lg focus:outline-none focus:border-purple-500 transition-colors"
-                />
-              </div>
+              {/* GIPHY Search */}
+              <GiphySearch
+                searchTerm={displayName}
+                selectedUrl={imageUrl}
+                onSelect={setImageUrl}
+              />
               
               {error && (
                 <div className="text-red-400 text-sm bg-red-400/10 px-4 py-2 rounded-lg">

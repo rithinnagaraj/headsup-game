@@ -78,6 +78,80 @@ body {
   pointer-events: none;
 }
 
+/* Emoji stream animation (TikTok/Instagram style) */
+@keyframes emojiFloat {
+  0% {
+    opacity: 0;
+    transform: translateY(0) scale(0.5) rotate(0deg);
+  }
+  10% {
+    opacity: 1;
+    transform: translateY(-10vh) scale(1) rotate(10deg);
+  }
+  50% {
+    opacity: 1;
+    transform: translateY(-50vh) scale(1.2) rotate(-10deg);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-100vh) scale(0.8) rotate(20deg);
+  }
+}
+
+.animate-emoji-float {
+  animation: emojiFloat 2s ease-out forwards;
+}
+
+/* Card flip 3D animation */
+.card-3d-flip {
+  perspective: 1000px;
+}
+
+.card-3d-inner {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  transition: transform 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+  transform-style: preserve-3d;
+}
+
+.card-3d-flip.flipped .card-3d-inner {
+  transform: rotateY(180deg);
+}
+
+.card-3d-front,
+.card-3d-back {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+}
+
+.card-3d-back {
+  transform: rotateY(180deg);
+}
+
+/* Tension timer pulse */
+@keyframes tensionPulse {
+  0%, 100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.05);
+  }
+}
+
+.timer-tension {
+  animation: tensionPulse 0.5s ease-in-out infinite;
+}
+
+.timer-bar-danger {
+  animation: tensionPulse 0.5s ease-in-out infinite;
+  background: linear-gradient(90deg, #ef4444, #dc2626, #ef4444);
+  background-size: 200% 100%;
+}
+
 /* Pulse ring animation for active player */
 @keyframes pulseRing {
   0% {

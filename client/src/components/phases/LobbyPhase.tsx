@@ -8,7 +8,7 @@ import { useState } from 'react';
 export function LobbyPhase() {
   const gameState = useGameStore((s) => s.gameState);
   const isHost = useGameStore((s) => s.isHost());
-  const [copied, setCopied] = useState(false);
+  const [copiedType, setCopiedType] = useState<'link' | 'code' | null>(null);
   
   if (!gameState) return null;
   
@@ -16,11 +16,27 @@ export function LobbyPhase() {
   const minPlayers = gameState.settings.minPlayers;
   const canStart = players.length >= minPlayers;
   
+  // Get the full join link
+  const getJoinLink = () => {
+    if (typeof window !== 'undefined') {
+      return `${window.location.origin}/room/${gameState.roomCode}`;
+    }
+    return `https://headsup-game-phi.vercel.app/room/${gameState.roomCode}`;
+  };
+  
+  const handleCopyLink = async () => {
+    const success = await copyToClipboard(getJoinLink());
+    if (success) {
+      setCopiedType('link');
+      setTimeout(() => setCopiedType(null), 2000);
+    }
+  };
+  
   const handleCopyCode = async () => {
     const success = await copyToClipboard(gameState.roomCode);
     if (success) {
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
+      setCopiedType('code');
+      setTimeout(() => setCopiedType(null), 2000);
     }
   };
   
@@ -34,34 +50,54 @@ export function LobbyPhase() {
         {/* Room Code */}
         <div className="text-center mb-8">
           <p className="text-gray-400 text-sm mb-2">Room Code</p>
-          <button
-            onClick={handleCopyCode}
-            className="group relative inline-flex items-center gap-2"
-          >
+          <div className="flex items-center justify-center gap-2 mb-3">
             <span className="text-4xl font-mono font-bold tracking-widest text-purple-400">
               {gameState.roomCode}
             </span>
-            <svg
-              className="w-6 h-6 text-gray-400 group-hover:text-white transition-colors"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
+            <button
+              onClick={handleCopyCode}
+              className="p-2 text-gray-400 hover:text-white transition-colors relative"
+              title="Copy code"
             >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"
-              />
+              <svg
+                className="w-5 h-5"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"
+                />
+              </svg>
+              {copiedType === 'code' && (
+                <span className="absolute -top-8 left-1/2 -translate-x-1/2 bg-green-500 text-white text-xs px-2 py-1 rounded whitespace-nowrap">
+                  Code Copied!
+                </span>
+              )}
+            </button>
+          </div>
+          
+          {/* Copy Link Button */}
+          <button
+            onClick={handleCopyLink}
+            className="relative inline-flex items-center gap-2 px-4 py-2 bg-purple-600 hover:bg-purple-700 rounded-lg transition-colors text-sm font-medium"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
             </svg>
-            {copied && (
-              <span className="absolute -top-8 left-1/2 -translate-x-1/2 bg-green-500 text-white text-xs px-2 py-1 rounded">
-                Copied!
+            Copy Invite Link
+            {copiedType === 'link' && (
+              <span className="absolute -top-8 left-1/2 -translate-x-1/2 bg-green-500 text-white text-xs px-2 py-1 rounded whitespace-nowrap">
+                Link Copied!
               </span>
             )}
           </button>
-          <p className="text-gray-500 text-sm mt-2">
-            Share this code with friends to join
+          
+          <p className="text-gray-500 text-sm mt-3">
+            Share the link or code with friends to join
           </p>
         </div>
         

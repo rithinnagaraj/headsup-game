@@ -660,14 +660,18 @@ export class RoomManager {
 
   /**
    * Creates a view of the game state for a specific player
-   * Hides the player's own assigned identity
+   * Hides the player's own assigned identity unless they've guessed, forfeited, or game is finished
    */
   serializeGameStateForPlayer(room: GameState, playerId: string): SerializableGameState {
     const serialized = this.serializeGameState(room);
     
     // Hide the requesting player's own identity (the core game mechanic)
+    // UNLESS: they guessed correctly, forfeited, or game is finished
     const playerData = serialized.players[playerId];
-    if (playerData && !playerData.hasGuessedCorrectly) {
+    const hasForfeited = (playerData?.forfeitOrder ?? 0) > 0;
+    const isGameFinished = room.phase === 'FINISHED';
+    
+    if (playerData && !playerData.hasGuessedCorrectly && !hasForfeited && !isGameFinished) {
       serialized.players[playerId] = {
         ...playerData,
         assignedIdentity: undefined, // Hidden from self

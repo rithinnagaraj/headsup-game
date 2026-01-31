@@ -106,6 +106,12 @@ export default function HomePage() {
             >
               Create a Room
             </button>
+            
+            {/* Hint text for direct link */}
+            <p className="text-center text-purple-400 text-sm">
+              🔗 Got a Link? Just click it to join instantly!
+            </p>
+            
             <button
               onClick={() => setMode('join')}
               className="w-full py-4 px-6 bg-game-border hover:bg-gray-600 rounded-xl font-semibold text-lg transition-all transform hover:scale-[1.02]"

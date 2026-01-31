@@ -1,9 +1,12 @@
 'use client';
 
+import { useRef, useState, useEffect } from 'react';
 import { useGameStore, selectActiveReactions } from '@/store/gameStore';
 import { sendReaction } from '@/lib/socket';
 import { getInitials, cn } from '@/lib/utils';
 import { Player, Reaction } from '@shared/types';
+import { triggerCardConfetti } from '@/components/effects';
+import { soundManager } from '@/lib/sounds';
 
 const REACTION_EMOJIS = ['👍', '👎', '😂', '🤔', '😮', '🔥', '❤️', '👏'];
 
@@ -40,16 +43,54 @@ interface PlayerCardProps {
 }
 
 function PlayerCard({ player, isMe, isActiveGuesser, reactions }: PlayerCardProps) {
+  const cardRef = useRef<HTMLDivElement>(null);
+  const [isFlipping, setIsFlipping] = useState(false);
+  const [showRevealed, setShowRevealed] = useState(false);
+  const prevGuessedRef = useRef(player.hasGuessedCorrectly);
+
   const handleReaction = (emoji: string) => {
     sendReaction({ toPlayerId: player.id, emoji });
   };
   
-  // Determine what to show on the card
-  const showIdentity = !isMe || player.hasGuessedCorrectly;
+  // Initialize showRevealed if I already guessed correctly (e.g., on page refresh)
+  useEffect(() => {
+    if (player.hasGuessedCorrectly && isMe) {
+      setShowRevealed(true);
+    }
+  }, []);
+  
+  // Detect when I guess correctly and trigger flip animation on MY card
+  useEffect(() => {
+    if (player.hasGuessedCorrectly && !prevGuessedRef.current && isMe) {
+      // I just guessed correctly - trigger the flip on MY card!
+      setIsFlipping(true);
+      soundManager.play('ding');
+      
+      // After flip animation starts, show the revealed content
+      setTimeout(() => {
+        setShowRevealed(true);
+        
+        // Trigger confetti at the card position
+        if (cardRef.current) {
+          const rect = cardRef.current.getBoundingClientRect();
+          const centerX = rect.left + rect.width / 2;
+          const centerY = rect.top + rect.height / 2;
+          triggerCardConfetti(centerX, centerY);
+        }
+      }, 400);
+    }
+    prevGuessedRef.current = player.hasGuessedCorrectly;
+  }, [player.hasGuessedCorrectly, isMe]);
+  
+  // Determine what to show on the card:
+  // - For MY card: hidden until I guess correctly
+  // - For OTHER players: always show their identity
+  const shouldShowHidden = isMe && !player.hasGuessedCorrectly;
   const identity = player.assignedIdentity;
   
   return (
     <div
+      ref={cardRef}
       className={cn(
         'relative bg-game-card rounded-xl border-2 overflow-hidden transition-all',
         {
@@ -101,37 +142,52 @@ function PlayerCard({ player, isMe, isActiveGuesser, reactions }: PlayerCardProp
           </div>
         </div>
         
-        {/* Identity Card */}
-        <div
-          className={cn(
-            'aspect-[3/4] rounded-lg flex flex-col items-center justify-center p-4 text-center',
-            showIdentity ? 'bg-game-bg' : 'bg-gradient-to-br from-purple-600 to-pink-600'
-          )}
-        >
-          {showIdentity ? (
-            <>
-              {identity?.imageUrl && (
-                <img
-                  src={identity.imageUrl}
-                  alt={identity.displayName}
-                  className="w-16 h-16 rounded-full object-cover mb-2"
-                />
-              )}
-              <p className="font-bold text-lg">{identity?.displayName || '???'}</p>
-              {player.hasGuessedCorrectly && (
+        {/* Identity Card with 3D Flip */}
+        {shouldShowHidden ? (
+          // MY card - hidden until I guess correctly, then flips
+          <div className={cn('card-3d-flip aspect-[3/4]', (isFlipping || showRevealed) && 'flipped')}>
+            <div className="card-3d-inner w-full h-full">
+              {/* Front of card (hidden identity - shown to me) */}
+              <div className="card-3d-front rounded-lg flex flex-col items-center justify-center p-4 text-center bg-gradient-to-br from-purple-600 to-pink-600">
+                <span className="text-4xl mb-2">❓</span>
+                <p className="font-bold">GUESS ME</p>
+                <p className="text-xs opacity-80 mt-1">Your identity is hidden</p>
+              </div>
+              
+              {/* Back of card (revealed identity - after I guess correctly) */}
+              <div className="card-3d-back rounded-lg flex flex-col items-center justify-center p-4 text-center bg-game-bg">
+                {identity?.imageUrl && (
+                  <img
+                    src={identity.imageUrl}
+                    alt={identity.displayName}
+                    className="w-16 h-16 rounded-full object-cover mb-2"
+                  />
+                )}
+                <p className="font-bold text-lg">{identity?.displayName || '???'}</p>
                 <p className="text-xs text-green-400 mt-1">
-                  Guessed in {player.turnsToGuess} turns
+                  🎉 Guessed in {player.turnsToGuess} turns!
                 </p>
-              )}
-            </>
-          ) : (
-            <>
-              <span className="text-4xl mb-2">❓</span>
-              <p className="font-bold">GUESS ME</p>
-              <p className="text-xs opacity-80 mt-1">Your identity is hidden</p>
-            </>
-          )}
-        </div>
+              </div>
+            </div>
+          </div>
+        ) : (
+          // OTHER players' cards OR my card after guessing - always show identity
+          <div className="aspect-[3/4] rounded-lg flex flex-col items-center justify-center p-4 text-center bg-game-bg">
+            {identity?.imageUrl && (
+              <img
+                src={identity.imageUrl}
+                alt={identity.displayName}
+                className="w-16 h-16 rounded-full object-cover mb-2"
+              />
+            )}
+            <p className="font-bold text-lg">{identity?.displayName || '???'}</p>
+            {player.hasGuessedCorrectly && (
+              <p className="text-xs text-green-400 mt-1">
+                🎉 Guessed in {player.turnsToGuess} turns!
+              </p>
+            )}
+          </div>
+        )}
         
         {/* Reaction Buttons (only for other players) */}
         {!isMe && (

@@ -12,6 +12,7 @@ import {
   disconnectSocket,
   GameSocket,
 } from '@/lib/socket';
+import { soundManager } from '@/lib/sounds';
 import {
   SerializableGameState,
   Player,
@@ -173,6 +174,9 @@ export function useGameSocket() {
       const myPlayerId = useGameStore.getState().player.myPlayerId;
       const gameState = useGameStore.getState().gameState;
       const player = gameState?.players[data.playerId];
+      
+      // Play buzzer sound for wrong guesses
+      soundManager.play('buzzer');
       
       if (data.playerId === myPlayerId) {
         setGuessLockUntil(data.lockUntil);
