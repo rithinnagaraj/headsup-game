@@ -225,6 +225,7 @@ export interface GuessResponse {
   success: boolean;
   correct: boolean;
   lockUntil?: number;
+  identity?: PlayerIdentity;  // Returned on correct guess (IRL mode)
   error?: string;
 }
 

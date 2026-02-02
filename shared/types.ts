@@ -131,6 +131,7 @@ export interface ClientToServerEvents {
   send_reaction: (data: SendReactionPayload) => void;
   forfeit: (callback: (response: ForfeitResponse) => void) => void;
   pass_turn: (callback: (response: GenericResponse) => void) => void;
+  claim_correct_guess: (callback: (response: GuessResponse) => void) => void; // IRL mode only
   
   // Utility
   ping: (callback: () => void) => void;
