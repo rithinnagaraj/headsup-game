@@ -170,7 +170,7 @@ export default function HomePage() {
                     >
                       <span className="text-lg">🌐</span>
                       <p className="font-medium mt-1">Online</p>
-                      <p className="text-xs opacity-70">Full features</p>
+                      <p className="text-xs opacity-70">If you're playing remotely</p>
                     </button>
                     <button
                       type="button"
