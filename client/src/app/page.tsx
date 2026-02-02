@@ -183,7 +183,7 @@ export default function HomePage() {
                       )}
                     >
                       <span className="text-lg">🎉</span>
-                      <p className="font-medium mt-1">In Person</p>
+                      <p className="font-medium mt-1">In Person / On call</p>
                       <p className="text-xs opacity-70">Talk face-to-face</p>
                     </button>
                   </div>
