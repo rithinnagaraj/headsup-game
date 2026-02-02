@@ -47,6 +47,15 @@ export function LobbyPhase() {
   return (
     <div className="min-h-screen flex flex-col items-center justify-center p-4">
       <div className="w-full max-w-lg bg-game-card rounded-2xl shadow-2xl border border-game-border p-8">
+        {/* Game Mode Badge */}
+        {gameState.settings?.gameMode === 'irl' && (
+          <div className="mb-4 text-center">
+            <span className="inline-flex items-center gap-2 px-3 py-1 bg-pink-500/20 border border-pink-500/50 rounded-full text-pink-300 text-sm">
+              🎉 In-Person Mode
+            </span>
+          </div>
+        )}
+        
         {/* Room Code */}
         <div className="text-center mb-8">
           <p className="text-gray-400 text-sm mb-2">Room Code</p>

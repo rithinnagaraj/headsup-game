@@ -98,14 +98,14 @@ io.on('connection', (socket: Socket<ClientToServerEvents, ServerToClientEvents>)
 
   socket.on('create_room', (data: CreateRoomPayload, callback: (response: RoomResponse) => void) => {
     try {
-      const { playerName, avatarUrl } = data;
+      const { playerName, avatarUrl, gameMode } = data;
 
       if (!playerName || playerName.trim().length === 0) {
         callback({ success: false, error: 'Player name is required' });
         return;
       }
 
-      const roomCode = roomManager.createRoom(socket.id, playerName.trim(), avatarUrl);
+      const roomCode = roomManager.createRoom(socket.id, playerName.trim(), avatarUrl, gameMode || 'online');
       
       socket.join(roomCode);
       
@@ -114,7 +114,7 @@ io.on('connection', (socket: Socket<ClientToServerEvents, ServerToClientEvents>)
         socket.emit('game_state_update', roomManager.serializeGameState(room));
       }
 
-      console.log(`[Room] Created room ${roomCode} by ${playerName}`);
+      console.log(`[Room] Created room ${roomCode} by ${playerName} (mode: ${gameMode || 'online'})`);
       callback({ success: true, roomCode, playerId: socket.id });
     } catch (error) {
       console.error('[Room] Error creating room:', error);
@@ -395,6 +395,48 @@ io.on('connection', (socket: Socket<ClientToServerEvents, ServerToClientEvents>)
     } catch (error) {
       console.error('[Game] Error making guess:', error);
       callback({ success: false, correct: false, error: 'Failed to make guess' });
+    }
+  });
+
+  // IRL mode only - player claims they guessed correctly (honor system)
+  socket.on('claim_correct_guess', (callback: (response: GuessResponse) => void) => {
+    try {
+      const result = roomManager.claimCorrectGuess(socket.id);
+
+      if (!result.success) {
+        callback({ success: false, correct: false, error: 'Cannot claim guess in this mode' });
+        return;
+      }
+
+      if (result.room) {
+        const player = result.room.players.get(socket.id);
+        
+        // Broadcast correct guess
+        broadcastToRoom(result.room.roomCode, 'correct_guess', {
+          playerId: socket.id,
+          identity: result.identity!,
+        });
+
+        // Check if game finished
+        if (result.gameFinished) {
+          const rankings = roomManager.getGameResults(result.room.roomCode);
+          if (rankings) {
+            broadcastToRoom(result.room.roomCode, 'game_finished', rankings);
+          }
+          broadcastToRoom(result.room.roomCode, 'phase_changed', 'FINISHED');
+        } else if (result.room.turnState) {
+          broadcastToRoom(result.room.roomCode, 'turn_started', result.room.turnState);
+          startTurnTimerWithBroadcast(result.room.roomCode);
+        }
+
+        broadcastGameState(result.room);
+        callback({ success: true, correct: true, identity: result.identity });
+
+        console.log(`[Game] ${player?.name} claimed correct guess in IRL mode (room ${result.room.roomCode})`);
+      }
+    } catch (error) {
+      console.error('[Game] Error claiming correct guess:', error);
+      callback({ success: false, correct: false, error: 'Failed to claim guess' });
     }
   });
 

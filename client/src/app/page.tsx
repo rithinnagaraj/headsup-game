@@ -14,6 +14,7 @@ export default function HomePage() {
   const [mode, setMode] = useState<'select' | 'create' | 'join'>('select');
   const [playerName, setPlayerName] = useState('');
   const [roomCode, setRoomCode] = useState('');
+  const [gameMode, setGameMode] = useState<'online' | 'irl'>('online');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   
@@ -32,7 +33,7 @@ export default function HomePage() {
     try {
       await connect();
       
-      const response = await createRoom({ playerName: playerName.trim() });
+      const response = await createRoom({ playerName: playerName.trim(), gameMode });
       
       if (response.success && response.roomCode && response.playerId) {
         setMyPlayerId(response.playerId);
@@ -95,8 +96,8 @@ export default function HomePage() {
           The ultimate multiplayer guessing game
         </p>
       </div>
-      
-      {/* Main Card */}
+        
+        {/* Main Card */}
       <div className="w-full max-w-md bg-game-card rounded-2xl shadow-2xl border border-game-border p-8">
         {mode === 'select' && (
           <div className="space-y-4">
@@ -153,6 +154,42 @@ export default function HomePage() {
                 />
               </div>
               
+              {mode === 'create' && (
+                <div>
+                  <label className="block text-sm text-gray-400 mb-2">Game Mode</label>
+                  <div className="grid grid-cols-2 gap-3">
+                    <button
+                      type="button"
+                      onClick={() => setGameMode('online')}
+                      className={cn(
+                        'py-3 px-4 rounded-lg border-2 transition-all text-center',
+                        gameMode === 'online'
+                          ? 'border-purple-500 bg-purple-500/20 text-white'
+                          : 'border-game-border bg-game-bg text-gray-400 hover:border-gray-500'
+                      )}
+                    >
+                      <span className="text-lg">🌐</span>
+                      <p className="font-medium mt-1">Online</p>
+                      <p className="text-xs opacity-70">Full features</p>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setGameMode('irl')}
+                      className={cn(
+                        'py-3 px-4 rounded-lg border-2 transition-all text-center',
+                        gameMode === 'irl'
+                          ? 'border-pink-500 bg-pink-500/20 text-white'
+                          : 'border-game-border bg-game-bg text-gray-400 hover:border-gray-500'
+                      )}
+                    >
+                      <span className="text-lg">🎉</span>
+                      <p className="font-medium mt-1">In Person</p>
+                      <p className="text-xs opacity-70">Talk face-to-face</p>
+                    </button>
+                  </div>
+                </div>
+              )}
+              
               {mode === 'join' && (
                 <div>
                   <label className="block text-sm text-gray-400 mb-2">Room Code</label>
@@ -202,8 +239,69 @@ export default function HomePage() {
         )}
       </div>
       
+      {/* How to Play Section - Collapsible */}
+      <details className="w-full max-w-md mt-6 mb-4 group">
+        <summary className="bg-game-card/50 rounded-2xl border border-game-border p-4 cursor-pointer list-none flex items-center justify-center gap-2 hover:bg-game-card/70 transition-colors">
+          <span>📖</span>
+          <span className="font-bold">How to Play</span>
+          <svg className="w-5 h-5 text-gray-400 transition-transform group-open:rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+          </svg>
+        </summary>
+        <div className="bg-game-card/50 rounded-b-2xl border border-t-0 border-game-border p-6 -mt-3 pt-6">
+          
+          <div className="space-y-4 text-sm">
+            <div className="flex gap-3">
+              <span className="flex-shrink-0 w-7 h-7 bg-purple-600 rounded-full flex items-center justify-center font-bold text-sm">1</span>
+              <div>
+                <p className="font-semibold text-white">Create or Join a Room</p>
+                <p className="text-gray-400">One player creates a room and shares the code or link with friends (3-12 players)</p>
+              </div>
+            </div>
+            
+            <div className="flex gap-3">
+              <span className="flex-shrink-0 w-7 h-7 bg-purple-600 rounded-full flex items-center justify-center font-bold text-sm">2</span>
+              <div>
+                <p className="font-semibold text-white">Assign Identities</p>
+                <p className="text-gray-400">Each player secretly assigns a famous person, character, celebrity or or even your friend to another player</p>
+              </div>
+            </div>
+            
+            <div className="flex gap-3">
+              <span className="flex-shrink-0 w-7 h-7 bg-purple-600 rounded-full flex items-center justify-center font-bold text-sm">3</span>
+              <div>
+                <p className="font-semibold text-white">Ask Yes/No Questions</p>
+                <p className="text-gray-400">On your turn, ask questions like &quot;Am I a real person?&quot; or &quot;Am I in movies? to get a better idea of your personality&quot; — others vote!</p>
+              </div>
+            </div>
+            
+            <div className="flex gap-3">
+              <span className="flex-shrink-0 w-7 h-7 bg-purple-600 rounded-full flex items-center justify-center font-bold text-sm">4</span>
+              <div>
+                <p className="font-semibold text-white">Guess Your Identity</p>
+                <p className="text-gray-400">Think you know who you are? Make a guess! Correct guesses win, wrong guesses get a timeout</p>
+              </div>
+            </div>
+            
+            <div className="flex gap-3">
+              <span className="flex-shrink-0 w-7 h-7 bg-gradient-to-r from-purple-600 to-pink-600 rounded-full flex items-center justify-center font-bold text-sm">🏆</span>
+              <div>
+                <p className="font-semibold text-white">Win the Game!</p>
+                <p className="text-gray-400">The player who guesses their identity in the fewest turns wins. Good luck!</p>
+              </div>
+            </div>
+          </div>
+          
+          <div className="mt-4 pt-4 border-t border-game-border">
+            <p className="text-xs text-gray-500 text-center">
+              💡 <span className="text-purple-400">Pro tip:</span> Choose <span className="text-pink-400">In-Person mode</span> when playing together in the same room!
+            </p>
+          </div>
+        </div>
+      </details>
+      
       {/* Footer */}
-      <p className="mt-8 text-gray-500 text-sm">
+      <p className="mt-4 text-gray-500 text-sm">
         Built by Rithin
       </p>
     </div>

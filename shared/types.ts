@@ -89,6 +89,7 @@ export interface GameSettings {
   guessLockDuration: number;  // Default: 10000ms (10 seconds)
   minPlayers: number;         // Default: 3
   maxPlayers: number;         // Default: 12
+  gameMode: 'online' | 'irl'; // Default: 'online' - IRL mode has simplified UI
 }
 
 // ---- Serializable versions for transmission ----
@@ -179,6 +180,7 @@ export interface ServerToClientEvents {
 export interface CreateRoomPayload {
   playerName: string;
   avatarUrl?: string;
+  gameMode?: 'online' | 'irl';  // Default: 'online'
 }
 
 export interface JoinRoomPayload {
@@ -222,6 +224,7 @@ export interface GuessResponse {
   success: boolean;
   correct: boolean;
   lockUntil?: number;
+  identity?: PlayerIdentity;  // Returned on correct guess (IRL mode)
   error?: string;
 }
 
@@ -269,4 +272,5 @@ export const DEFAULT_GAME_SETTINGS: GameSettings = {
   guessLockDuration: 10000,   // 10 seconds
   minPlayers: 3,
   maxPlayers: 12,
+  gameMode: 'online',         // Default to online mode
 };

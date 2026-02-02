@@ -75,7 +75,7 @@ export class RoomManager {
   // ROOM LIFECYCLE
   // ============================================
 
-  createRoom(hostId: string, hostName: string, avatarUrl?: string): string {
+  createRoom(hostId: string, hostName: string, avatarUrl?: string, gameMode: 'online' | 'irl' = 'online'): string {
     let roomCode: string;
     do {
       roomCode = generateRoomCode();
@@ -102,7 +102,7 @@ export class RoomManager {
       playerOrder: [hostId],
       questionHistory: [],
       createdAt: Date.now(),
-      settings: { ...DEFAULT_GAME_SETTINGS },
+      settings: { ...DEFAULT_GAME_SETTINGS, gameMode },
     };
 
     this.rooms.set(roomCode, gameState);
@@ -509,6 +509,50 @@ export class RoomManager {
       
       return { success: true, correct: false, lockUntil, room, gameFinished: false };
     }
+  }
+
+  /**
+   * IRL mode only - Player claims they guessed correctly (honor system)
+   * No validation needed - used for in-person play
+   */
+  claimCorrectGuess(playerId: string): { 
+    success: boolean; 
+    identity?: PlayerIdentity;
+    room: GameState | null;
+    gameFinished: boolean;
+  } {
+    const room = this.getRoomByPlayerId(playerId);
+    if (!room) return { success: false, room: null, gameFinished: false };
+    if (room.phase !== 'PLAYING') return { success: false, room: null, gameFinished: false };
+    if (room.settings.gameMode !== 'irl') return { success: false, room: null, gameFinished: false };
+
+    const player = room.players.get(playerId);
+    if (!player) return { success: false, room: null, gameFinished: false };
+    if (player.hasGuessedCorrectly) return { success: false, room: null, gameFinished: false };
+
+    const identity = player.assignedIdentity;
+    
+    // Mark as guessed correctly
+    player.hasGuessedCorrectly = true;
+    player.turnsToGuess = room.turnState?.turnNumber || 0;
+
+    // Check if game is finished
+    const activePlayers = Array.from(room.players.values())
+      .filter((p: Player) => p.isConnected && p.forfeitOrder === 0);
+    const allGuessed = activePlayers.every((p: Player) => p.hasGuessedCorrectly);
+
+    if (allGuessed) {
+      room.phase = 'FINISHED';
+      this.clearTurnTimer(room.roomCode);
+      return { success: true, identity, room, gameFinished: true };
+    }
+
+    // If current guesser claimed correct, advance turn
+    if (room.turnState?.activeGuesserId === playerId) {
+      this.advanceTurn(room.roomCode);
+    }
+
+    return { success: true, identity, room, gameFinished: false };
   }
 
   // ============================================

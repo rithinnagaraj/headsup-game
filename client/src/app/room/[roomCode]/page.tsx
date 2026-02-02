@@ -10,6 +10,7 @@ import { joinRoom } from '@/lib/socket';
 import { LobbyPhase } from '@/components/phases/LobbyPhase';
 import { AssignmentPhase } from '@/components/phases/AssignmentPhase';
 import { PlayingPhase } from '@/components/phases/PlayingPhase';
+import { IRLPlayingPhase } from '@/components/phases/IRLPlayingPhase';
 import { FinishedPhase } from '@/components/phases/FinishedPhase';
 import { Notifications } from '@/components/ui/Notifications';
 import { ConnectionStatus } from '@/components/ui/ConnectionStatus';
@@ -175,6 +176,10 @@ export default function RoomPage() {
       case 'ASSIGNMENT':
         return <AssignmentPhase />;
       case 'PLAYING':
+        // Check if IRL mode
+        if (gameState?.settings?.gameMode === 'irl') {
+          return <IRLPlayingPhase />;
+        }
         return <PlayingPhase />;
       case 'FINISHED':
         return <FinishedPhase />;

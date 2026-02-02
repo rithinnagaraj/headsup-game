@@ -171,6 +171,15 @@ export function passTurn(): Promise<GenericResponse> {
   });
 }
 
+export function claimCorrectGuess(): Promise<GuessResponse> {
+  return new Promise((resolve) => {
+    const s = getSocket();
+    s.emit('claim_correct_guess', (response) => {
+      resolve(response);
+    });
+  });
+}
+
 export function ping(): Promise<number> {
   return new Promise((resolve) => {
     const start = Date.now();
